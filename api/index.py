@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 import traceback
+import os
 from playhouse.shortcuts import model_to_dict
 from locator import locate
 import time
@@ -7,6 +8,13 @@ from db import Visitor, Visit
 from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
+
+# Read authentication credentials from environment variables
+AUTH_USERNAME = os.getenv('AUTH_USERNAME')
+AUTH_PASSWORD = os.getenv('AUTH_PASSWORD')
+
+if not AUTH_USERNAME or not AUTH_PASSWORD:
+    raise ValueError("AUTH_USERNAME and AUTH_PASSWORD environment variables must be set")
 
 def handle(ip: str, path: str):
     """
@@ -42,6 +50,16 @@ def ping_slash():
 
 @app.route('/dump')
 def dump():
+    # Check for authentication via query parameters
+    username = request.args.get('username')
+    password = request.args.get('password')
+    
+    if not username or not password:
+        return jsonify({"error": "Username and password query parameters are required"}), 401
+    
+    if username != AUTH_USERNAME or password != AUTH_PASSWORD:
+        return jsonify({"error": "Invalid credentials"}), 401
+    
     visits = [model_to_dict(v) for v in list(Visit.select())]
     return jsonify(visits)
 
